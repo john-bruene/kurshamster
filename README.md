@@ -87,7 +87,7 @@ Die App prüft beim Start die neueste Version auf der Release-Seite dieses Repos
 
 ### Builds und Signierung
 
-`.github/workflows/build.yml` baut bei jedem Tag `v*` einen Mac-DMG und einen Windows-Installer und veröffentlicht sie als GitHub-Release. Neue Version: `version` in `package.json` erhöhen, dann `git tag v0.2.0 && git push --tags`. Ohne Zertifikat sind diese Builds unsigniert:
+`.github/workflows/build.yml` veröffentlicht neue Versionen automatisch: `version` in `package.json` erhöhen und auf `main` pushen. Gibt es zu dieser Version noch kein Release, baut GitHub einen Mac-DMG und einen Windows-Installer und stellt sie auf die Release-Seite. Ohne Zertifikat sind diese Builds unsigniert:
 
 - **Mac:** Beim ersten Öffnen Rechtsklick → „Öffnen“. Für die Verteilung an alle: Apple Developer Program (Developer ID + Notarisierung) als Secrets ergänzen.
 - **Windows:** SmartScreen warnt. Für Open-Source-Projekte bietet die [SignPath Foundation](https://signpath.org) kostenlose Signierung an.

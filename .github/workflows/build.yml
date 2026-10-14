@@ -1,19 +1,40 @@
-name: Build
+name: Build & Release
 
-# Neues Release: Version in package.json erhöhen, dann
-#   git tag v0.2.0 && git push --tags
-# Die Installer erscheinen danach automatisch auf der Release-Seite.
+# Neue Version veröffentlichen: "version" in package.json erhöhen und auf main pushen.
+# Gibt es zu dieser Version noch kein Release, baut GitHub die Installer für Mac und
+# Windows und veröffentlicht sie automatisch auf der Release-Seite.
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      exists: ${{ steps.r.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - id: r
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.v.outputs.version }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: check
+    if: needs.check.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -42,8 +63,8 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [check, build]
+    if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -52,8 +73,17 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.check.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: KursHamster ${{ needs.check.outputs.version }}
           files: installers/*
           body: |
-            **Windows:** `KursHamster-…-Windows-Setup.exe` herunterladen und doppelklicken. Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.
+            **Windows:** `KursHamster-${{ needs.check.outputs.version }}-Windows-Setup.exe` herunterladen und doppelklicken. Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.
 
-            **Mac:** `KursHamster-…-Mac.dmg` öffnen und die App in *Programme* ziehen. Beim ersten Start: *Systemeinstellungen → Datenschutz & Sicherheit* → „Dennoch öffnen“.
+            **Mac:** `KursHamster-${{ needs.check.outputs.version }}-Mac.dmg` öffnen und die App in *Programme* ziehen. Beim ersten Start: *Systemeinstellungen → Datenschutz & Sicherheit* → „Dennoch öffnen“.
+
+            ---
+
+            **Windows:** download `KursHamster-${{ needs.check.outputs.version }}-Windows-Setup.exe` and double-click it. If you see “Windows protected your PC”: “More info” → “Run anyway”.
+
+            **Mac:** open `KursHamster-${{ needs.check.outputs.version }}-Mac.dmg` and drag the app into *Applications*. On first launch: *System Settings → Privacy & Security* → “Open Anyway”.

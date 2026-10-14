@@ -1,7 +1,7 @@
 {
   "name": "kurshamster",
   "productName": "KursHamster",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Hamstert alle deine Daten aus Stud.IP: Kursdateien und Nachrichten, gesichert auf dem eigenen Rechner.",
   "homepage": "https://github.com/john-bruene/kurshamster",
   "repository": {

@@ -59,6 +59,18 @@ test('Beschreibungen werden sicher als HTML dargestellt', () => {
   assert.match(html, /<a href="https:\/\/ok\.de" target="_blank" rel="noopener">ok<\/a>/);
 });
 
+test('MediaCast-Liste: echter Ausschnitt aus dem Göttinger Stud.IP', () => {
+  const { parseMediaIndex } = require('../src/core/mediacast');
+  // gekürzter Original-Ausschnitt (Oktober 2026), Video nur zum Anschauen
+  const html = `<tr> <td> <div class="thumb-container" style="background-image:url('https://medien.e-learning.uni-goettingen.de/app/mediacast_receiver/file_search/search_thumb.php?hash=6dc804544c0a410877cf78100c1726c1&amp;format=125')"> <!-- Medien-Thumbnail--> </div> <div class="overlay-curtain "> <a href="https://studip.uni-goettingen.de/plugins.php/mediacastplugin/media/player/6dc804544c0a410877cf78100c1726c1?cid=5e8dadbfab0975046ae942bc408b6dfb&amp;from_action=index" data-dialog="size=1280x720"> <img/> </a> </div> </td> <td> <div class="media-table-infos"> <div> <a href="https://studip.uni-goettingen.de/plugins.php/mediacastplugin/media/player/6dc804544c0a410877cf78100c1726c1?cid=5e8dadbfab0975046ae942bc408b6dfb&amp;from_action=index" data-dialog="size=1280x720"></a> Gemeinsamkeiten und Unterschiede qualitativer und quantitativer Sozialforschung – Abschlussdiskussion <a href="https://studip.uni-goettingen.de/plugins.php/mediacastplugin/media/meta/6dc804544c0a410877cf78100c1726c1/6/5e8dadbfab0975046ae942bc408b6dfb?cid=5e8dadbfab0975046ae942bc408b6dfb" data-dialog="size=auto" ;=""><svg><title>Info</title></svg></a> </div> </div> </td> <td> <table class="media-table-actions"> <tbody><tr> <td colspan="2"> <div>23.01.2018</div> <br> </td> </tr> <tr> <td> 0:01 Min </td> <td> 3767.79 MB </td> </tr> </tbody></table> </td> </tr>`;
+  const [m] = parseMediaIndex(html, 'https://studip.uni-goettingen.de', '5e8dadbfab0975046ae942bc408b6dfb');
+  assert.strictEqual(m.token, '6dc804544c0a410877cf78100c1726c1');
+  assert.strictEqual(m.title, 'Gemeinsamkeiten und Unterschiede qualitativer und quantitativer Sozialforschung – Abschlussdiskussion');
+  assert.strictEqual(m.created, '2018-01-23');
+  assert.strictEqual(m.allowed, false);
+  assert.strictEqual(m.variants[0].high.size, 3767790000);
+});
+
 test('Login-Prüfung erkennt fehlende Sitzung', async () => {
   const { client } = await setup({ loggedIn: false });
   await assert.rejects(client.me(), SessionExpired);
@@ -76,9 +88,15 @@ test('Einlesen: Ordnerbaum, Paging, doppelte Namen, gesperrte Kurse, Aufzeichnun
   assert.deepStrictEqual(c1.files.map((f) => f.parts.join('/')).sort(), ['Folien_Teil 1/x (f3abcd).pdf', 'Folien_Teil 1/x.pdf', 'intro.mp4', 'syllabus.pdf'].sort());
   assert.strictEqual(c1.files.find((f) => f.parts.at(-1) === 'intro.mp4').cat, 'videos');
 
-  // Aufzeichnungen: v1 erlaubt, v2 ohne Downloads ausgelassen, v3 in gesperrter Liste
-  assert.deepStrictEqual(c1.recordings.map((r) => [r.token, r.allowed]), [['v1', true], ['v3', false]]);
-  const v1 = c1.recordings[0];
+  // Aufzeichnungen: Opencast v1 erlaubt, v2 ohne Downloads ausgelassen, v3 in gesperrter Liste;
+  // MediaCast: aa… nur zum Anschauen, bb… mit Download-Link – nach Datum sortiert
+  assert.deepStrictEqual(
+    c1.recordings.map((r) => [r.provider || 'opencast', r.token.slice(0, 4), r.allowed]),
+    [['mediacast', 'aaaa', false], ['mediacast', 'bbbb', true], ['opencast', 'v1', true], ['opencast', 'v3', false]]
+  );
+  assert.strictEqual(c1.recordings[1].title, '2021-04-20 Kapitel 2 & 3');
+  assert.deepStrictEqual(plan.recordings, { total: 4, downloadable: 2 });
+  const v1 = c1.recordings.find((r) => r.token === 'v1');
   assert.deepStrictEqual(v1.variants.map((v) => [v.source, v.low.key, v.high.key]), [['presentation', '2000', '2000'], ['presenter', '1000', '5000']]);
 
   const c3 = plan.areas.find((a) => a.id === 'c3');
@@ -135,6 +153,9 @@ test('Sichern mit Filter, Aufzeichnungen, Kursseiten, Übersicht und Fortsetzen'
   assert.strictEqual(read(course, '_Aufzeichnungen', '2021-04-20 Sitzung 1 (Vortrag).mp4'), 'v1-presenter-1000');
   assert.strictEqual(read(course, '_Aufzeichnungen', '2021-04-20 Sitzung 1 (Bildschirm).mp4'), 'v1-presentation-2000');
   assert.ok(!fetchFn.calls.some((c) => c.includes('/download/v3/')));
+  // MediaCast: nur das Video mit Download-Link wird geladen, das andere nie angefragt
+  assert.strictEqual(read(course, '_Aufzeichnungen', '2021-04-20 Kapitel 2 & 3.avi'), 'media-' + 'bb'.repeat(16));
+  assert.ok(!fetchFn.calls.some((c) => c.includes('/media/check/c1/' + 'aa'.repeat(16))));
 
   // Kursseite mit Details
   const page = read(course, '_Kursinfo.html');
@@ -148,6 +169,7 @@ test('Sichern mit Filter, Aufzeichnungen, Kursseiten, Übersicht und Fortsetzen'
   assert.match(page, /<a href="Folien_Teil%201\/x%20\(f3abcd\)\.pdf">/);
   assert.match(page, /syllabus\.pdf <span class="size">[^<]+<\/span> <span class="badge">nicht gesichert/);
   assert.match(page, /Geheime Sitzung[^]*Aufzeichnung darf nicht heruntergeladen werden/);
+  assert.match(page, /<a href="https:\/\/studip\.example\.org\/plugins\.php\/mediacastplugin\/media\/player\/a{32}\?cid=c1"[^>]*>2021-04-13 VL_01_Einfuehrung\.mp4<\/a>[^]*?nur zum Anschauen in Stud\.IP/);
   assert.match(page, /href="\.\.\/\.\.\/_%C3%9Cbersicht\.html"/);
   const page2 = read(target, 'SoSe 2019', '0815 Ökonometrie', '_Kursinfo.html');
   assert.match(page2, /<strong>HTML<\/strong>/);
@@ -162,14 +184,14 @@ test('Sichern mit Filter, Aufzeichnungen, Kursseiten, Übersicht und Fortsetzen'
   assert.strictEqual(stats.overview, path.join(target, '_Übersicht.html'));
 
   const last = events.filter((e) => e.phase === 'download').pop();
-  assert.strictEqual(last.filesTotal, 5); // 2 Dateien c1 + 1 Datei c2 + 2 Aufzeichnungsspuren
+  assert.strictEqual(last.filesTotal, 6); // 2 Dateien c1 + 1 Datei c2 + 2 Opencast-Spuren + 1 MediaCast-Video
   assert.ok(events.some((e) => e.phase === 'details'));
 
   // Zweiter Lauf: nichts wird neu geladen
   fetchFn.calls.length = 0;
   const again = await backup.run(plan, { target, areaIds: ['c1', 'c2'], includeMessages: false, filter: { categories: ['documents', 'sheets'], maxBytes: 4 }, recordings: { quality: 'low' } });
   assert.strictEqual(again.downloaded, 0);
-  assert.strictEqual(again.skipped, 5);
+  assert.strictEqual(again.skipped, 6);
   assert.ok(!fetchFn.calls.some((r) => r.includes('/content') || r.includes('/download/')));
   // Übersicht verlinkt die Nachrichten weiterhin
   assert.match(read(target, '_Übersicht.html'), /_Nachrichten\/Nachrichten\.html/);

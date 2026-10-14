@@ -147,7 +147,9 @@ function fileTree(files, t) {
       items.push(
         f.saved
           ? `<li><a href="${hrefOf(f.parts)}">${name}</a>${size}</li>`
-          : `<li class="missing">${name}${size} <span class="badge">${esc(f.reason || t('page.notSaved'))}</span></li>`
+          : f.href && safeUrl(f.href)
+            ? `<li class="missing"><a href="${esc(f.href)}" target="_blank" rel="noopener">${name}</a> ↗${size} <span class="badge">${esc(f.reason || t('page.notSaved'))}</span></li>`
+            : `<li class="missing">${name}${size} <span class="badge">${esc(f.reason || t('page.notSaved'))}</span></li>`
       );
     }
     for (const [dir, sub] of [...node.dirs.entries()].sort((a, b) => a[0].localeCompare(b[0], t.locale))) {
@@ -160,7 +162,7 @@ function fileTree(files, t) {
 
 // ------------------------------------------------------------------ Kursseite
 
-function coursePage({ t, area, details, files, recordings, notes, host, generatedAt, overviewHref }) {
+function coursePage({ t, area, details, files, recordings, recordingCount, notes, host, generatedAt, overviewHref }) {
   const d = details || {};
   const meta = [];
   const row = (k, v) => v && meta.push(`<dt>${esc(t(k))}</dt><dd>${v}</dd>`);
@@ -201,7 +203,7 @@ function coursePage({ t, area, details, files, recordings, notes, host, generate
   html += `<div class="card">${files.length ? fileTree(files, t) : `<p class="missing">${esc(t('page.noFiles'))}</p>`}</div>`;
 
   if (recordings && recordings.length) {
-    html += `<h2>${esc(t('page.recordings'))} <span class="badge">${esc(t.n('recording', recordings.length))}</span></h2><div class="card">${fileTree(recordings, t)}</div>`;
+    html += `<h2>${esc(t('page.recordings'))} <span class="badge">${esc(t.n('recording', recordingCount ?? recordings.length))}</span></h2><div class="card">${fileTree(recordings, t)}</div>`;
   }
   if (notes && notes.length) {
     html += `<h2>${esc(t('page.notes'))}</h2><div class="card"><ul class="notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`;

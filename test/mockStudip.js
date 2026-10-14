@@ -94,6 +94,13 @@ function createData() {
     },
     forbidden: new Set(['courses/c3/folders']),
     contents: { f1: 'hello', fv: '123456789', f2: 'abc', f3abcdef: 'abcd', f4: 'a;b\n' },
+    // MediaCast („Medien“): ein Video nur zum Anschauen, eines mit Download-Link
+    media: {
+      c1: [
+        { id: 'aa'.repeat(16), title: 'VL_01_Einfuehrung.mp4', date: '13.04.2021', duration: '85:12', size: '412.50', download: false },
+        { id: 'bb'.repeat(16), title: '2021-04-20 Kapitel 2 &amp; 3', date: '20.04.2021', duration: '0:01', size: '860.16', download: true, file: 'Kapitel_2.avi' },
+      ],
+    },
     opencast: {
       config: { server: { 1: { name: 'https://media.example' } }, settings: { OPENCAST_MEDIADOWNLOAD: 'allow' } },
       playlists: {
@@ -118,6 +125,17 @@ function createData() {
   }
   data.lists['folders/b/file-refs'] = [];
   return data;
+}
+
+/** HTML einer MediaCast-Liste („Medien“), aufgebaut wie im echten Stud.IP der Uni Göttingen. */
+function mediaIndexHtml(cid, items, origin) {
+  const row = (m) => `<tr> <td> <div class="thumb-container" style="background-image:url('https://medien.example/thumb.php?hash=${m.id}')"> </div>
+    <div class="overlay-curtain ">${m.download ? `<a href="${origin}/plugins.php/mediacastplugin/media/check/${cid}/${m.id}/6?v=${m.file}" download><svg viewBox="0 0 54 54"><title>Herunterladen</title></svg></a>` : `<a href="${origin}/plugins.php/mediacastplugin/media/player/${m.id}?cid=${cid}&amp;from_action=index" data-dialog="size=1280x720"><img src="x"></a>`}</div> </td>
+    <td> <div class="media-table-infos"> <div> ${m.download ? '' : `<a href="${origin}/plugins.php/mediacastplugin/media/player/${m.id}?cid=${cid}&amp;from_action=index"></a>`} ${m.title} <a href="${origin}/plugins.php/mediacastplugin/media/meta/${m.id}/6/${cid}?cid=${cid}" data-dialog="size=auto"><svg><title>Info</title></svg></a> </div> </div> </td>
+    <td> <table class="media-table-actions"> <tbody><tr> <td colspan="2"> <div>${m.date}</div> <br> </td> </tr>
+    ${m.download ? `<tr><td><a href="${origin}/plugins.php/mediacastplugin/media/check/${cid}/${m.id}/6?v=${m.file}" download><svg><title>Herunterladen</title></svg></a></td></tr>` : ''}
+    <tr> <td> ${m.duration} Min </td> <td> ${m.size} MB </td> </tr> </tbody></table> </td> </tr>`;
+  return `<!DOCTYPE html><html><body><div id="layout_content"><a href="?clear_filters=1">Alle Medien (${items.length})</a><table class="media-table">${items.map(row).join('\n')}</table></div></body></html>`;
 }
 
 /** Antwort-Funktion für einen Pfad wie /jsonapi.php/v1/… oder /plugins.php/… */
@@ -146,6 +164,23 @@ function respond(data, u, { loggedIn = true, pageSize = 1 } = {}) {
       return { status: 200, headers: { 'content-type': 'video/mp4' }, body: `${token}-${source}-${key}` };
     }
     return { status: 404, headers: { 'content-type': 'application/json' }, body: '{}' };
+  }
+
+  if (u.pathname.startsWith('/plugins.php/mediacastplugin/')) {
+    const p = u.pathname.slice('/plugins.php/mediacastplugin'.length);
+    if (p === '/media/index') {
+      const cid = u.searchParams.get('cid');
+      const items = data.media[cid];
+      if (!items) return { status: 500, headers: { 'content-type': 'text/html' }, body: '<html>Fehler</html>' };
+      return { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8' }, body: mediaIndexHtml(cid, items, u.origin) };
+    }
+    const m = /^\/media\/check\/(\w+)\/(\w+)\/\d+$/.exec(p);
+    if (m) {
+      const item = (data.media[m[1]] || []).find((x) => x.id === m[2]);
+      if (!item) return { status: 404, headers: { 'content-type': 'text/html' }, body: '' };
+      return { status: 200, headers: { 'content-type': 'video/x-msvideo' }, body: `media-${item.id}` };
+    }
+    return { status: 404, headers: { 'content-type': 'text/html' }, body: '' };
   }
 
   if (!u.pathname.startsWith('/jsonapi.php/v1/')) return { status: 404, headers: { 'content-type': 'text/html' }, body: '' };

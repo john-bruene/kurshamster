@@ -313,7 +313,14 @@ function renderSelection() {
       const notes = a.errors.map((e) => t.err(e));
       const info = !a.scanned
         ? t('step2.pending')
-        : [a.fileCount ? t.n('file', a.fileCount) : t('step2.noFiles'), a.recordings.length ? t.n('recording', a.recordings.length) : ''].filter(Boolean).join(' · ');
+        : [
+            a.fileCount ? t.n('file', a.fileCount) : t('step2.noFiles'),
+            a.recordingsTotal
+              ? t.n('recording', a.recordingsTotal) + (a.recordings.length < a.recordingsTotal ? ` (${t('step2.downloadable', { count: num(a.recordings.length) })})` : '')
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ');
       details.append(
         el(
           'label',
@@ -398,8 +405,9 @@ function renderChips(s) {
 
 function renderRecordingsInfo() {
   const t = ui.t;
-  const all = ui.areas.flatMap((a) => a.recordings);
-  const available = ui.opencast && ui.opencast.available;
+  const all = ui.areas.flatMap((a) => a.recordings); // nur die mit Download-Freigabe
+  const total = ui.areas.reduce((s, a) => s + (a.recordingsTotal || 0), 0);
+  const available = (ui.opencast && ui.opencast.available) || total > 0;
   $('recordingsRow').hidden = !available;
   $('includeRecordings').disabled = !all.length;
   if (!available) {
@@ -408,14 +416,18 @@ function renderRecordingsInfo() {
     return;
   }
   if (!all.length) {
-    $('recordingsInfo').textContent = t('opt.recordingsNone');
+    $('recordingsInfo').textContent = total ? t('opt.recordingsNoDownload', { total: t.n('recording', total) }) : t('opt.recordingsNone');
     $('includeRecordings').checked = false;
     ui.recordings.enabled = false;
   } else {
     const size = all.reduce((s, [hi, lo]) => s + (ui.recordings.quality === 'low' ? lo : hi), 0);
-    $('recordingsInfo').textContent = t('opt.recordingsHint', { count: t.n('recording', all.length), size: fmt(size) });
+    $('recordingsInfo').textContent =
+      total > all.length
+        ? t('opt.recordingsSome', { total: t.n('recording', total), count: num(all.length), size: fmt(size) })
+        : t('opt.recordingsHint', { count: t.n('recording', all.length), size: fmt(size) });
   }
-  $('qualityRow').hidden = !ui.recordings.enabled;
+  // Qualitätswahl gibt es nur bei Opencast (MediaCast liefert eine Fassung)
+  $('qualityRow').hidden = !ui.recordings.enabled || !(ui.opencast && ui.opencast.available);
 }
 
 $('selAll').addEventListener('click', () => {

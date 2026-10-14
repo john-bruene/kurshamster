@@ -175,6 +175,34 @@ class StudipClient {
     return null;
   }
 
+  /**
+   * HTML-Seite eines Plugins (z. B. MediaCast). Gibt { status, text } zurück oder null bei Netzwerkfehlern.
+   * Landet die Anfrage auf der Login-Seite, ist die Sitzung abgelaufen.
+   */
+  async getPluginText(pathAndQuery, tries = 3) {
+    const url = this.host + pathAndQuery;
+    for (let attempt = 1; attempt <= tries; attempt++) {
+      this.checkCancelled();
+      if (this.pause) await sleep(this.pause);
+      let r;
+      try {
+        r = await this.fetch(url, { headers: { Accept: 'text/html' }, signal: this.signal() });
+      } catch (e) {
+        this.checkCancelled();
+        if (attempt === tries) return null;
+        await sleep(this.retryDelayMs * attempt);
+        continue;
+      }
+      if (r.status === 401 || /dispatch\.php\/login|\/login\?/i.test(r.url || '')) throw new SessionExpired();
+      if ([502, 503, 504].includes(r.status) && attempt < tries) {
+        await sleep(this.retryDelayMs * attempt);
+        continue;
+      }
+      return { status: r.status, text: r.ok ? await r.text() : '' };
+    }
+    return null;
+  }
+
   /** Startet den Download einer Datei; gibt die Response zurück. */
   async fileResponse(refId) {
     return this.downloadResponse(this.abs(`file-refs/${refId}/content`));

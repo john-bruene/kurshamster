@@ -11,6 +11,7 @@ const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { SessionExpired, Cancelled } = require('./client');
 const { Opencast } = require('./opencast');
+const { MediaCast } = require('./mediacast');
 const pages = require('./pages');
 const i18n = require('../shared/i18n');
 const { categoryOf, passes } = require('../shared/filetypes');
@@ -140,6 +141,7 @@ function summarizeArea(a) {
     fileCount: a.files.length,
     bytes: a.bytes || 0,
     errors: a.errors,
+    recordingsTotal: (a.recordings || []).length,
     files: a.files.map((f) => [f.size, f.cat]),
     recordings: (a.recordings || [])
       .filter((r) => r.allowed)
@@ -154,6 +156,7 @@ class Backup extends EventEmitter {
     super();
     this.client = client;
     this.opencast = new Opencast(client);
+    this.mediacast = new MediaCast(client);
     this.semesterCache = new Map();
     this.nameCache = new Map();
     this.lastEmit = 0;
@@ -397,6 +400,14 @@ class Backup extends EventEmitter {
             if (passthrough(e)) throw e;
           }
         }
+        try {
+          const media = await this.mediacast.listCourse(a.id);
+          if (media.length) {
+            a.recordings = [...a.recordings, ...media].sort((x, y) => String(x.created || '').localeCompare(String(y.created || '')));
+          }
+        } catch (e) {
+          if (passthrough(e)) throw e;
+        }
       } else {
         await this.scanAreaFast(`users/${uid}/folders`, `users/${uid}/file-refs`, a);
       }
@@ -423,6 +434,10 @@ class Backup extends EventEmitter {
       host: this.client.host,
       scannedAt: new Date().toISOString(),
       opencast: { available: ocAvailable, mediadownload: this.opencast.mediadownload },
+      recordings: {
+        total: areas.reduce((s, a) => s + a.recordings.length, 0),
+        downloadable: areas.reduce((s, a) => s + a.recordings.filter((r) => r.allowed).length, 0),
+      },
       areas: areas.filter((a) => a.kind === 'course' || a.files.length),
     };
   }
@@ -488,8 +503,15 @@ class Backup extends EventEmitter {
 
   recordingName(rec, variant, t) {
     const date = String(rec.created || '').slice(0, 10);
+    let title = String(rec.title || rec.token);
+    if (variant.source === 'media') {
+      // MediaCast: Titel ist oft schon ein Dateiname oder beginnt mit dem Datum
+      title = title.replace(new RegExp(`\\.${variant.ext}$`, 'i'), '');
+      const prefix = date && !title.startsWith(date) ? date + ' ' : '';
+      return cleanFilename(`${prefix}${title}.${variant.ext}`);
+    }
     const label = t(`rec.${variant.source}`);
-    return cleanFilename(`${date ? date + ' ' : ''}${rec.title} (${label}).${variant.ext}`);
+    return cleanFilename(`${date ? date + ' ' : ''}${title} (${label}).${variant.ext}`);
   }
 
   /**
@@ -521,9 +543,11 @@ class Backup extends EventEmitter {
           if (!rec.allowed) continue;
           for (const v of rec.variants) {
             const m = recordings.quality === 'low' ? v.low : v.high;
+            const url = rec.provider === 'mediacast' ? m.downloadUrl : this.opencast.downloadUrl(rec.token, v.source, m.key);
+            if (!url) continue;
             jobs.push({
               kind: 'recording',
-              url: this.opencast.downloadUrl(rec.token, v.source, m.key),
+              url,
               rel: [...dir, t('dir.recordings'), this.recordingName(rec, v, t)],
               size: m.size,
               chdate: rec.created ? rec.created.replace(' ', 'T') : null,
@@ -715,7 +739,8 @@ class Backup extends EventEmitter {
           const parts = [t('dir.recordings'), this.recordingName(rec, v, t)];
           const saved = await exists(path.join(target, ...dir, ...parts));
           const m = recordings && recordings.quality === 'low' ? v.low : v.high;
-          recs.push({ parts, size: m.size, saved, reason: rec.allowed ? t('page.notSaved') : t('err.recordingDenied') });
+          const reason = rec.allowed ? t('page.notSaved') : rec.provider === 'mediacast' ? t('err.streamOnly') : t('err.recordingDenied');
+          recs.push({ parts, size: m.size, saved, reason, href: !saved ? rec.streamUrl || null : null });
         }
       }
       const area = a.kind === 'personal' ? { ...a, title: t('page.personalHeading'), label: t('page.personalHeading') } : a;
@@ -725,6 +750,7 @@ class Backup extends EventEmitter {
         details: details.get(a.id),
         files,
         recordings: recs,
+        recordingCount: (a.recordings || []).length,
         notes: a.errors.map((e) => t.err(e)),
         host: a.kind === 'course' ? plan.host : null,
         generatedAt,

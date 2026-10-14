@@ -24,7 +24,7 @@ fs.writeFileSync(path.join(tmp, 'user', 'settings.json'), JSON.stringify({ lang:
 
 const data = createData();
 const server = http.createServer((req, res) => {
-  const u = new URL(req.url, 'http://x');
+  const u = new URL(req.url, `http://${req.headers.host}`);
   const loggedIn = /(^|;\s*)Studip_Session=geheim/.test(req.headers.cookie || '');
   if (u.pathname === '/') {
     res.writeHead(302, { location: '/dispatch.php/login' });
@@ -115,6 +115,7 @@ app.whenReady().then(async () => {
       path.join(course, 'syllabus.pdf'),
       path.join(course, '_Kursinfo.html'),
       path.join(course, '_Aufzeichnungen', '2021-04-20 Sitzung 1 (Vortrag).mp4'),
+      path.join(course, '_Aufzeichnungen', '2021-04-20 Kapitel 2 & 3.avi'),
       path.join(target, 'SoSe 2019', '0815 Ökonometrie', 'daten.csv'),
       path.join(target, '_Übersicht.html'),
       path.join(target, '_Nachrichten', 'Nachrichten.html'),

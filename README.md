@@ -517,7 +517,7 @@ Deine Hochschule fehlt? Eintrag in [`src/shared/universities.js`](src/shared/uni
 - **Fortsetzen und Aktualisieren:** Vorhandene Dateien werden übersprungen. Wurde eine Datei in Stud.IP geändert, lädt KursHamster die neue Fassung und behält die alte daneben (`Folien (Version vom 2021-05-03).pdf`)
 - **Kursinfo-Seite pro Veranstaltung:** Beschreibung, Lehrende, Einrichtung, regelmäßige Termine und alle Einzeltermine mit Raum, dazu eine Dateiliste mit Links
 - **Übersicht (`_Übersicht.html`):** alle Semester und Kurse auf einen Blick – funktioniert offline in jedem Browser
-- **Vorlesungsaufzeichnungen (Opencast)**, optional und standardmäßig aus, in hoher oder niedriger Qualität – nur wo die Lehrenden den Download erlauben
+- **Vorlesungsaufzeichnungen** aus Opencast und dem Reiter „Medien“ (MediaCast), optional und standardmäßig aus – geladen wird nur, was Stud.IP zum Download anbietet. Alle übrigen Videos stehen mit Titel, Datum und Link zum Anschauen auf der Kursseite
 - **Filter:** Dateitypen (Dokumente, Folien, Videos, …) und maximale Dateigröße
 - **Stud.IP-Nachrichten** als Markdown und als lesbare HTML-Seite
 - **Deutsch und Englisch**

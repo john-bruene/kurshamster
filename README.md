@@ -16,7 +16,7 @@ Das ist vor allem am Ende des Studiums praktisch. Nach der Exmatrikulation wird 
 - **Windows:** [KursHamster-Windows-Setup.exe](https://github.com/john-bruene/kurshamster/releases/latest/download/KursHamster-Windows-Setup.exe)
 - **Mac** (Apple-Chip und Intel): [KursHamster-Mac.dmg](https://github.com/john-bruene/kurshamster/releases/latest/download/KursHamster-Mac.dmg)
 
-Die App ist kostenlos. Ältere Versionen und Hinweise zu Änderungen stehen auf der [Versionsseite](https://github.com/john-bruene/kurshamster/releases).
+Die App ist kostenlos. Ältere Versionen und Hinweise zu Änderungen stehen auf der [Versionsseite](https://github.com/john-bruene/kurshamster/releases). Die Windows-Version soll künftig über die SignPath Foundation signiert werden, mehr dazu unter [Code-Signatur](#code-signatur).
 
 ## Installieren
 
@@ -132,6 +132,20 @@ Diese 28 Hochschulen kannst du in KursHamster direkt auswählen. Andere Hochschu
 
 </details>
 <!-- unis:end -->
+
+## Code-Signatur
+
+Kostenlose Code-Signatur durch [SignPath.io](https://signpath.io), Zertifikat von der [SignPath Foundation](https://signpath.org). Die Aufnahme ist beantragt. Bis sie bestätigt ist, sind die Windows-Installer noch nicht signiert.
+
+Signiert werden nur Installer, die GitHub Actions direkt aus dem Quellcode in diesem Repository baut. Jede signierte Version wird vorher von Hand freigegeben.
+
+| Rolle | Wer |
+|---|---|
+| Autor (Änderungen am Code) | [John Frederic Brüne](https://github.com/john-bruene) |
+| Prüfung von Beiträgen anderer | [John Frederic Brüne](https://github.com/john-bruene) |
+| Freigabe der Signatur | [John Frederic Brüne](https://github.com/john-bruene) |
+
+**Datenschutz:** KursHamster überträgt keine Daten an andere Systeme. Ausnahmen sind das Stud.IP der Hochschule, bei der du dich anmeldest, und GitHub: Dort fragt die App beim Start nach, ob es eine neue Version gibt. Diese Abfrage lässt sich unten in der App abschalten.
 
 ## Für Entwicklerinnen und Entwickler
 

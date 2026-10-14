@@ -71,4 +71,4 @@ Ohne Zertifikate warnen Windows und macOS beim ersten Start. Der Workflow ist vo
 
 Sind sie vorhanden, signiert und notarisiert der Workflow die Mac-App automatisch.
 
-**Windows:** Für Open-Source-Projekte signiert die [SignPath Foundation](https://signpath.org) kostenlos. Voraussetzungen sind unter anderem eine Seite zur Signatur-Richtlinie im Repository, Zwei-Faktor-Anmeldung für alle mit Schreibrechten und eine manuelle Freigabe jeder signierten Version. Nach der Aufnahme wird der Signaturschritt in `.github/workflows/build.yml` ergänzt.
+**Windows:** Die Aufnahme bei der [SignPath Foundation](https://signpath.org) ist beantragt (Oktober 2026). Die Signatur-Richtlinie steht im README unter „Code-Signatur“. Bedingungen: Zwei-Faktor-Anmeldung für alle mit Schreibrechten, nur Builds aus GitHub Actions, manuelle Freigabe jeder signierten Version. Nach der Zusage wird der Signaturschritt in `.github/workflows/build.yml` ergänzt und der Hinweis „beantragt“ im README entfernt.

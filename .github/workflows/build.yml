@@ -111,7 +111,7 @@ jobs:
             echo "- **Windows:** [KursHamster-Windows-Setup.exe](https://github.com/${GITHUB_REPOSITORY}/releases/download/v$V/KursHamster-Windows-Setup.exe)"
             echo "- **Mac:** [KursHamster-Mac.dmg](https://github.com/${GITHUB_REPOSITORY}/releases/download/v$V/KursHamster-Mac.dmg)"
             echo
-            echo "Anleitung zur Installation: [README](https://github.com/${GITHUB_REPOSITORY}#installieren)"
+            echo "Anleitung zur Installation: [README](https://github.com/${GITHUB_REPOSITORY}#installieren) · [Code-Signatur](https://github.com/${GITHUB_REPOSITORY}#code-signatur)"
             echo
             if [ -n "$NOTES" ]; then
               echo "## Neu in Version $V"

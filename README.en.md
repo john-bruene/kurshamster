@@ -16,7 +16,7 @@ This is especially useful when you finish your studies. Some time after you leav
 - **Windows:** [KursHamster-Windows-Setup.exe](https://github.com/john-bruene/kurshamster/releases/latest/download/KursHamster-Windows-Setup.exe)
 - **Mac** (Apple silicon and Intel): [KursHamster-Mac.dmg](https://github.com/john-bruene/kurshamster/releases/latest/download/KursHamster-Mac.dmg)
 
-The app is free and can be switched between English and German at the top right.
+The app is free and can be switched between English and German at the top right. The Windows version is going to be signed through the SignPath Foundation, see [code signing policy](#code-signing-policy).
 
 ## Install
 
@@ -95,6 +95,20 @@ You can pick these 28 universities directly in KursHamster. Other universities w
 
 </details>
 <!-- unis:end -->
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). The application has been submitted. Until it is confirmed, the Windows installers are not signed yet.
+
+Only installers that GitHub Actions builds directly from the source code in this repository are signed. Every signed release is approved manually.
+
+| Role | Who |
+|---|---|
+| Author (code changes) | [John Frederic Brüne](https://github.com/john-bruene) |
+| Reviewer of contributions | [John Frederic Brüne](https://github.com/john-bruene) |
+| Approver of signing requests | [John Frederic Brüne](https://github.com/john-bruene) |
+
+**Privacy:** KursHamster does not transfer any information to other networked systems, except to the Stud.IP of the university you sign in to, and to GitHub to check for a new version at start. That check can be switched off at the bottom of the app.
 
 ## For developers
 

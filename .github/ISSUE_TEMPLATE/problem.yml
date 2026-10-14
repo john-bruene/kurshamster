@@ -1,0 +1,38 @@
+name: Etwas funktioniert nicht
+description: Beschreib, was passiert ist. Es hilft, wenn du so genau wie möglich bist.
+labels: [problem]
+body:
+  - type: textarea
+    id: was
+    attributes:
+      label: Was ist passiert?
+      description: Was hast du gemacht, und was ist dann passiert? Gab es eine Fehlermeldung?
+    validations:
+      required: true
+  - type: input
+    id: hochschule
+    attributes:
+      label: Hochschule
+      placeholder: z. B. Universität Göttingen
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: Computer
+      options:
+        - Mac
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version von KursHamster
+      description: Steht ganz unten in der App, z. B. „Version 0.4.1“.
+  - type: textarea
+    id: fehler
+    attributes:
+      label: Inhalt von _fehler.txt (falls vorhanden)
+      description: Die Datei liegt im Ordner deiner Sicherung. Bitte keine Passwörter oder privaten Inhalte einfügen.
+      render: text

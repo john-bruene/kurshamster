@@ -232,11 +232,11 @@ function overviewPage({ t, host, generatedAt, semesters, personal, messages }) {
   for (const sem of semesters) {
     const items = sem.courses
       .map((c) => {
-        const label = `${c.number ? `<span class="num">${esc(c.number)}</span>` : ''}${esc(c.title)}`;
+        const num = c.number ? `<span class="num">${esc(c.number)}</span>` : '';
         const info = [c.fileCount ? t.n('file', c.fileCount) : '', c.recCount ? t.n('recording', c.recCount) : ''].filter(Boolean).join(' · ');
         return c.href
-          ? `<li><span><a href="${esc(c.href)}">${label}</a></span><span class="size">${esc(info)}</span></li>`
-          : `<li class="missing"><span>${label}</span><span class="size">${esc(t('page.notBackedUp'))}</span></li>`;
+          ? `<li><span>${num}<a href="${esc(c.href)}">${esc(c.title)}</a></span><span class="size">${esc(info)}</span></li>`
+          : `<li class="missing"><span>${num}${esc(c.title)}</span><span class="size">${esc(t('page.notBackedUp'))}</span></li>`;
       })
       .join('\n');
     html += `<h3>${esc(sem.name)}</h3><div class="card"><ul class="course-list">${items}</ul></div>`;

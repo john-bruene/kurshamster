@@ -587,6 +587,7 @@ function sessionLost(keepSelection) {
 studip.onProgress((p) => {
   const t = ui.t;
   if (p.phase === 'scan') {
+    if (!ui.scanning) return; // verspätete Meldung nach dem Ende des Einlesens
     ui.scanStatus = { kind: 'progress', done: p.done, total: p.total, label: p.label };
     renderScanStatus();
   } else if (p.phase === 'details') {
@@ -637,6 +638,7 @@ studip.onUpdate((s) => {
 $('updateBtn').addEventListener('click', () => studip.updateAction());
 $('updateClose').addEventListener('click', () => ($('updateBar').hidden = true));
 $('checkUpdatesBtn').addEventListener('click', () => studip.checkUpdates());
+$('autoUpdate').addEventListener('change', () => studip.setAutoUpdate($('autoUpdate').checked));
 
 // ------------------------------------------------------------------ Start
 
@@ -658,6 +660,7 @@ $('checkUpdatesBtn').addEventListener('click', () => studip.checkUpdates());
       ui.recordings.quality = st.recordings.quality;
       $('quality').value = st.recordings.quality;
     }
+    $('autoUpdate').checked = st.autoUpdate !== false;
     if (typeof st.includeMessages === 'boolean') {
       ui.includeMessages = st.includeMessages;
       $('includeMessages').checked = st.includeMessages;

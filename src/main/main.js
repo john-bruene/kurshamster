@@ -293,6 +293,8 @@ handle('open-file', async (p) => {
   return true;
 });
 
+handle('set-auto-update', (on) => saveSettings({ autoUpdate: !!on }).autoUpdate);
+
 handle('check-updates', async () => {
   if (updater) await updater.check({ manual: true });
   return true;
@@ -324,7 +326,8 @@ if (!app.requestSingleInstanceLock()) {
     ses().setUserAgent(browserUserAgent());
     createMainWindow();
     updater = new Updater({ repo: (pkg.kurshamster && pkg.kurshamster.updateRepo) || '', send: (s) => send('update', s) });
-    setTimeout(() => updater.check().catch(() => {}), 8000);
+    // Beim Start nach Updates suchen (abschaltbar; fragt nur die Release-Seite auf GitHub ab)
+    if (loadSettings().autoUpdate !== false) setTimeout(() => updater.check().catch(() => {}), 8000);
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     });

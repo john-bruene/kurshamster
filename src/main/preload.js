@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('studip', {
   openFile: call('open-file'),
   openLink: call('open-link'),
   checkUpdates: call('check-updates'),
+  setAutoUpdate: call('set-auto-update'),
   updateAction: call('update-action'),
   onProgress: listen('progress'),
   onUpdate: listen('update'),

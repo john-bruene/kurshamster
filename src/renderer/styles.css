@@ -189,3 +189,6 @@ button.small { padding: 5px 12px; font-size: 13px; }
 .small-link { font-size: 12px; padding: 0; }
 
 .course.pending .meta { font-style: italic; }
+
+.inline-check { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.inline-check input { width: 12px; height: 12px; }

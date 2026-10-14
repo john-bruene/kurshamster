@@ -1,0 +1,28 @@
+name: Hochschule ergänzen
+description: Deine Hochschule nutzt Stud.IP, steht aber noch nicht in der Liste.
+labels: [hochschule]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Name der Hochschule
+    validations:
+      required: true
+  - type: input
+    id: adresse
+    attributes:
+      label: Adresse eures Stud.IP
+      description: Die Adresse, die du im Browser für Stud.IP öffnest.
+      placeholder: https://studip.beispiel-uni.de
+    validations:
+      required: true
+  - type: dropdown
+    id: klappt
+    attributes:
+      label: Hat KursHamster mit „Andere Hochschule …“ funktioniert?
+      options:
+        - Ja
+        - Nein
+        - Nicht ausprobiert
+    validations:
+      required: true

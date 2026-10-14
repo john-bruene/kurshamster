@@ -1,8 +1,14 @@
 name: Build & Release
 
-# Neue Version veröffentlichen: "version" in package.json erhöhen und auf main pushen.
+# Neue Version veröffentlichen:
+#   1. "version" in package.json erhöhen
+#   2. Abschnitt "## <version>" in CHANGELOG.md ergänzen
+#   3. auf main pushen
 # Gibt es zu dieser Version noch kein Release, baut GitHub die Installer für Mac und
-# Windows und veröffentlicht sie automatisch auf der Release-Seite.
+# Windows und veröffentlicht sie auf der Release-Seite.
+#
+# Signatur (optional, siehe CONTRIBUTING.md): Sind die Secrets für das Apple-Zertifikat
+# hinterlegt, wird die Mac-App signiert und notarisiert, sonst nur ad hoc signiert.
 
 on:
   push:
@@ -48,9 +54,29 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run dist
+
+      - name: Installer bauen (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win --publish never
+
+      - name: Installer bauen (Mac)
+        if: runner.os == 'macOS'
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            echo "Apple-Zertifikat vorhanden: signieren und notarisieren"
+            node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));delete p.build.mac.identity;p.build.mac.hardenedRuntime=true;p.build.mac.notarize=true;fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
+          else
+            echo "Kein Apple-Zertifikat: nur Ad-hoc-Signatur"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          npx electron-builder --mac --publish never
+
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ matrix.os }}
@@ -67,23 +93,34 @@ jobs:
     if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: installers
           merge-multiple: true
+      - name: Text für die Release-Seite
+        run: |
+          V="${{ needs.check.outputs.version }}"
+          # Abschnitt "## $V" aus CHANGELOG.md bis zur nächsten Überschrift
+          NOTES=$(awk -v v="## $V" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md)
+          {
+            echo "## Herunterladen"
+            echo
+            echo "- **Windows:** [KursHamster-Windows-Setup.exe](https://github.com/${GITHUB_REPOSITORY}/releases/download/v$V/KursHamster-Windows-Setup.exe)"
+            echo "- **Mac:** [KursHamster-Mac.dmg](https://github.com/${GITHUB_REPOSITORY}/releases/download/v$V/KursHamster-Mac.dmg)"
+            echo
+            echo "Anleitung zur Installation: [README](https://github.com/${GITHUB_REPOSITORY}#installieren)"
+            echo
+            if [ -n "$NOTES" ]; then
+              echo "## Neu in Version $V"
+              echo "$NOTES"
+            fi
+          } > release-notes.md
+          cat release-notes.md
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check.outputs.version }}
           target_commitish: ${{ github.sha }}
           name: KursHamster ${{ needs.check.outputs.version }}
+          body_path: release-notes.md
           files: installers/*
-          body: |
-            **Windows:** `KursHamster-${{ needs.check.outputs.version }}-Windows-Setup.exe` herunterladen und doppelklicken. Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.
-
-            **Mac:** `KursHamster-${{ needs.check.outputs.version }}-Mac.dmg` öffnen und die App in *Programme* ziehen. Beim ersten Start: *Systemeinstellungen → Datenschutz & Sicherheit* → „Dennoch öffnen“.
-
-            ---
-
-            **Windows:** download `KursHamster-${{ needs.check.outputs.version }}-Windows-Setup.exe` and double-click it. If you see “Windows protected your PC”: “More info” → “Run anyway”.
-
-            **Mac:** open `KursHamster-${{ needs.check.outputs.version }}-Mac.dmg` and drag the app into *Applications*. On first launch: *System Settings → Privacy & Security* → “Open Anyway”.

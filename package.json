@@ -1,7 +1,7 @@
 {
   "name": "kurshamster",
   "productName": "KursHamster",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Hamstert alle deine Daten aus Stud.IP: Kursdateien und Nachrichten, gesichert auf dem eigenen Rechner.",
   "homepage": "https://github.com/john-bruene/kurshamster",
   "repository": {
@@ -52,9 +52,9 @@
           ]
         }
       ],
-      "identity": "-",
       "hardenedRuntime": false,
-      "artifactName": "KursHamster-${version}-Mac.${ext}"
+      "artifactName": "KursHamster-Mac.${ext}",
+      "identity": "-"
     },
     "win": {
       "target": [
@@ -65,7 +65,7 @@
           ]
         }
       ],
-      "artifactName": "KursHamster-${version}-Windows-Setup.${ext}"
+      "artifactName": "KursHamster-Windows-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -85,6 +85,9 @@
         "repo": "kurshamster",
         "releaseType": "release"
       }
-    ]
+    ],
+    "dmg": {
+      "title": "KursHamster"
+    }
   }
 }

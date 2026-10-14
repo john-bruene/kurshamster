@@ -12,6 +12,7 @@
     'app.logout': 'Abmelden',
     'app.version': 'Version {v}',
     'app.checkUpdates': 'Nach Updates suchen',
+    'app.autoUpdate': 'beim Start automatisch',
     'app.language': 'Sprache',
 
     // Schritt 1
@@ -204,6 +205,7 @@
     'app.logout': 'Sign out',
     'app.version': 'Version {v}',
     'app.checkUpdates': 'Check for updates',
+    'app.autoUpdate': 'automatically at start',
     'app.language': 'Language',
 
     'step1.title': 'Sign in',

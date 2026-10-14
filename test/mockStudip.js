@@ -212,3 +212,71 @@ function fakeFetch(data, opts = {}) {
 }
 
 module.exports = { createData, respond, fakeFetch };
+
+/** Beispieldaten für die Screenshots im README (erfundene Kurse und Personen). */
+function createDemoData() {
+  const data = createData();
+  const sem = { s1: 'WiSe 2021/22', s2: 'SoSe 2021', s3: 'WiSe 2020/21', s4: 'SoSe 2020' };
+  const courses = [
+    ['d1', 'Ökonometrie I', '800123', 's1', 'Grundlagen der linearen Regression, Schätzung und Tests.'],
+    ['d2', 'Mikroökonomik II', '800456', 's1', 'Spieltheorie, Marktformen und Informationsökonomik.'],
+    ['d3', 'Wissenschaftliches Arbeiten', '801100', 's1', ''],
+    ['d4', 'Statistik II', '800321', 's2', 'Schätzen, Testen und Konfidenzintervalle.'],
+    ['d5', 'Makroökonomik I', '800654', 's2', ''],
+    ['d6', 'Einführung in die Politikwissenschaft', '865001', 's2', ''],
+    ['d7', 'Statistik I', '800320', 's3', 'Beschreibende Statistik und Wahrscheinlichkeitsrechnung.'],
+    ['d8', 'Mathematik für Wirtschaftswissenschaften', '800010', 's3', ''],
+    ['d9', 'Einführung in die Volkswirtschaftslehre', '800001', 's4', ''],
+  ];
+  const fileSets = {
+    d1: [['Folien', 'Woche 01 – Einführung.pdf', 2.4e6], ['Folien', 'Woche 02 – OLS.pdf', 3.1e6], ['Folien', 'Woche 03 – Inferenz.pdf', 2.8e6], ['Übungen', 'Übungsblatt 1.pdf', 0.4e6], ['Übungen', 'Daten_Lohn.csv', 1.2e6], ['', 'Klausur Probe.pdf', 0.6e6]],
+    d2: [['Skript', 'Skript Mikro II.pdf', 8.5e6], ['Übungen', 'Blatt 1.pdf', 0.3e6], ['Übungen', 'Blatt 2.pdf', 0.3e6]],
+    d3: [['', 'Leitfaden Hausarbeit.pdf', 0.9e6], ['', 'Zitierregeln.pdf', 0.2e6]],
+    d4: [['Folien', 'Kapitel 1.pdf', 4.2e6], ['Folien', 'Kapitel 2.pdf', 3.9e6], ['Folien', 'Kapitel 3.pdf', 4.6e6], ['R-Code', 'beispiele.R', 0.02e6]],
+    d5: [['', 'Folien komplett.pdf', 12.4e6], ['Tutorium', 'Aufgaben.pdf', 0.5e6]],
+    d6: [['Texte', 'Lektüre Sitzung 2.pdf', 1.4e6], ['Texte', 'Lektüre Sitzung 3.pdf', 2.2e6]],
+    d7: [['Folien', 'Statistik I – Teil 1.pdf', 6.1e6], ['Folien', 'Statistik I – Teil 2.pdf', 5.7e6], ['Tutorium', 'Lösungen.pdf', 1.8e6], ['Videos', 'Erklärvideo Varianz.mp4', 84e6]],
+    d8: [['', 'Skript.pdf', 9.4e6], ['', 'Formelsammlung.pdf', 0.7e6]],
+    d9: [['', 'Einführung.pptx', 15.2e6], ['', 'Literaturliste.docx', 0.1e6]],
+  };
+  data.lists['users/u1/courses'] = courses.map(([id, title, nr, s, desc]) => ({
+    id, type: 'courses',
+    attributes: { 'course-number': nr, title, subtitle: null, 'course-type': 1, description: desc, location: null, miscellaneous: null },
+    relationships: { 'start-semester': { data: { id: s, type: 'semesters' } }, institute: { data: { id: 'inst1', type: 'institutes' } }, 'sem-type': { data: { id: '1', type: 'sem-types' } } },
+  }));
+  data.included['users/u1/courses'] = Object.entries(sem).map(([id, title]) => ({ id, type: 'semesters', attributes: { title } }));
+  data.single['users/me'].data.attributes['formatted-name'] = 'Mia Beispiel';
+  data.single['institutes/inst1'].data.attributes.name = 'Professur für Ökonometrie';
+  data.included['courses/d1/memberships'] = [{ id: 'l1', type: 'users', attributes: { 'formatted-name': 'Prof. Dr. Anna Muster' } }];
+  data.lists['courses/d1/memberships'] = data.lists['courses/c1/memberships'];
+  data.lists['courses/d1/events'] = ['2021-10-19T10:00:00+02:00', '2021-10-26T10:00:00+02:00', '2021-11-02T10:00:00+01:00', '2021-11-09T10:00:00+01:00', '2021-11-16T10:00:00+01:00'].map((start, i) => {
+    const end = start.replace('T10:', 'T12:');
+    return { id: 'e' + i, type: 'course-events', attributes: { start, end, location: 'ZHG 101', recurrence: 'Di. 10:00 - 12:00', categories: 'Vorlesung', title: '', 'is-cancelled': i === 3 } };
+  });
+  let n = 0;
+  for (const [cid, files] of Object.entries(fileSets)) {
+    const root = `r_${cid}`;
+    const folders = [{ id: root, type: 'folders', attributes: { name: cid, 'folder-type': 'RootFolder', 'is-readable': true }, relationships: { parent: { data: null } } }];
+    const refs = [];
+    for (const [folderName, name, size] of files) {
+      let parent = root;
+      if (folderName) {
+        parent = `${cid}_${folderName}`;
+        if (!folders.some((f) => f.id === parent)) folders.push({ id: parent, type: 'folders', attributes: { name: folderName, 'folder-type': 'StandardFolder', 'is-readable': true }, relationships: { parent: { data: { id: root } } } });
+      }
+      const id = `df${n++}`;
+      refs.push({ id, type: 'file-refs', attributes: { name, filesize: Math.round(size), chdate: '2021-11-03T10:00:00+01:00', 'is-readable': true, 'is-downloadable': true }, relationships: { parent: { data: { id: parent, type: 'folders' } } } });
+      data.contents[id] = 'Beispielinhalt';
+    }
+    data.lists[`courses/${cid}/folders`] = folders;
+    data.lists[`courses/${cid}/file-refs`] = refs;
+  }
+  data.opencast.playlists = {};
+  data.media = {
+    d7: Array.from({ length: 12 }, (_, i) => ({ id: String(i).padStart(2, '0').repeat(16), title: `Vorlesung ${String(i + 1).padStart(2, '0')}.mp4`, date: `${String(3 + i).padStart(2, '0')}.11.2020`, duration: '84:10', size: '480.20', download: false })),
+    d4: [{ id: 'cd'.repeat(16), title: 'Tutorium Zusammenfassung', date: '20.07.2021', duration: '42:00', size: '310.00', download: true, file: 'Tutorium.mp4' }],
+  };
+  return data;
+}
+
+module.exports.createDemoData = createDemoData;

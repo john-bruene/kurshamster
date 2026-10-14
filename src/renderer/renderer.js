@@ -1,5 +1,5 @@
 'use strict';
-/* global studip, KH_I18N, KH_TYPES */
+/* global studip, KH_I18N, KH_TYPES, KH_UNIS */
 const $ = (id) => document.getElementById(id);
 const { CATEGORIES, formatBytes, passes } = KH_TYPES;
 
@@ -15,6 +15,7 @@ const ui = {
   recordings: { enabled: false, quality: 'high' },
   includeMessages: true,
   running: false,
+  scanning: false,
   scanStatus: null, // { kind: 'found' | 'progress' | 'text', ... } für Neuzeichnen nach Sprachwechsel
   result: null,
   update: null,
@@ -69,6 +70,7 @@ function applyI18n() {
   const t = ui.t;
   document.documentElement.lang = ui.lang;
   for (const e of document.querySelectorAll('[data-i18n]')) e.textContent = t(e.dataset.i18n);
+  fillHostSelect();
   for (const o of $('maxSize').options) if (o.value !== '0') o.textContent = t('opt.over', { size: fmt(Number(o.value)) });
   for (const b of document.querySelectorAll('.lang-btn')) b.classList.toggle('active', b.dataset.lang === ui.lang);
   if (ui.version) $('version').textContent = t('app.version', { v: ui.version });
@@ -95,8 +97,34 @@ for (const b of document.querySelectorAll('.lang-btn')) {
 
 // ------------------------------------------------------------------ Schritt 1: Anmelden
 
+const normHost = (u) => String(u || '').trim().replace(/\/+$/, '').toLowerCase();
+
+function fillHostSelect() {
+  const sel = $('hostSelect');
+  const current = sel.value;
+  const unis = KH_UNIS.universities.slice().sort((a, b) => a.name.localeCompare(b.name, ui.t.locale));
+  sel.replaceChildren(
+    ...unis.map((u) => el('option', { value: u.url, text: u.city && !u.name.includes(u.city.split(' ')[0]) ? `${u.name} (${u.city})` : u.name })),
+    el('option', { value: 'custom', text: ui.t('step1.other') })
+  );
+  sel.value = current || KH_UNIS.DEFAULT_URL;
+}
+
+function selectHost(host) {
+  const known = KH_UNIS.universities.find((u) => normHost(u.url) === normHost(host));
+  if (known) {
+    $('hostSelect').value = known.url;
+    $('customHostField').hidden = true;
+  } else if (host) {
+    $('hostSelect').value = 'custom';
+    $('customHost').value = host;
+    $('customHostField').hidden = false;
+  }
+}
+
 $('hostSelect').addEventListener('change', () => {
   $('customHostField').hidden = $('hostSelect').value !== 'custom';
+  if ($('hostSelect').value === 'custom') $('customHost').focus();
 });
 
 function currentHost() {
@@ -131,6 +159,7 @@ function onLoggedIn(user) {
   setStep(1, 'done');
   setStep(2, 'active');
   $('scanBtn').disabled = false;
+  runScan();
 }
 
 $('logoutBtn').addEventListener('click', async () => {
@@ -171,23 +200,31 @@ function renderScanStatus() {
   }
 }
 
-$('scanBtn').addEventListener('click', async () => {
+async function runScan() {
+  if (ui.scanning) return;
   show('scanError', null);
+  ui.scanning = true;
+  ui.result = null;
+  $('resultBox').hidden = true;
+  $('progressBox').hidden = true;
   $('scanBtn').disabled = true;
-  $('selection').hidden = true;
   ui.scanStatus = { kind: 'text', key: 'step2.connecting' };
   renderScanStatus();
+  updateStart();
   const r = await studip.scan();
+  ui.scanning = false;
   $('scanBtn').disabled = false;
   if (!r.ok) {
     ui.scanStatus = null;
     renderScanStatus();
+    updateStart();
     if (r.code === 'session') return sessionLost();
     return show('scanError', ui.t('step2.scanFailed', { error: r.error }));
   }
   ui.areas = r.value.areas;
   ui.opencast = r.value.opencast;
-  ui.selected = new Set(ui.areas.filter((a) => a.fileCount > 0 || a.recordings.length).map((a) => a.id));
+  const ids = new Set(ui.areas.map((a) => a.id));
+  for (const id of [...ui.selected]) if (!ids.has(id) || !hasContent(ui.areas.find((a) => a.id === id))) ui.selected.delete(id);
   ui.scanStatus = { kind: 'found' };
   renderScanStatus();
   $('scanBtn').textContent = ui.t('step2.rescan');
@@ -197,6 +234,36 @@ $('scanBtn').addEventListener('click', async () => {
   setStep(3, 'active');
   $('chooseBtn').disabled = false;
   updateStart();
+}
+
+const hasContent = (a) => !!a && (a.fileCount > 0 || a.recordings.length > 0);
+const selectable = (a) => !a.scanned || hasContent(a);
+
+$('scanBtn').addEventListener('click', runScan);
+
+// Überblick sofort zeigen und laufend ergänzen, während die Kurse eingelesen werden
+let renderQueued = false;
+function queueRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    renderSelection();
+  });
+}
+studip.onScanUpdate((u) => {
+  if (!ui.scanning) return;
+  if (u.type === 'courses') {
+    ui.areas = u.areas;
+    ui.selected = new Set(ui.areas.map((a) => a.id));
+    $('selection').hidden = false;
+    queueRender();
+  } else if (u.type === 'area') {
+    const i = ui.areas.findIndex((a) => a.id === u.area.id);
+    if (i >= 0) ui.areas[i] = u.area;
+    if (!hasContent(u.area)) ui.selected.delete(u.area.id);
+    queueRender();
+  }
 });
 
 function renderSelection() {
@@ -213,7 +280,7 @@ function renderSelection() {
   const ordered = [...groups.entries()].sort((x, y) => semesterKey(y[0]) - semesterKey(x[0]));
   for (const [semester, areas] of ordered) {
     const name = semester || t('step2.personal');
-    const usable = areas.filter((a) => a.fileCount > 0 || a.recordings.length);
+    const usable = areas.filter(selectable);
     const semBox = el('input', { type: 'checkbox', 'aria-label': t('step2.selectSemester', { name }) });
     semBox.disabled = usable.length === 0;
     semBox.addEventListener('click', (e) => e.stopPropagation());
@@ -231,26 +298,26 @@ function renderSelection() {
         semBox,
         el('span', { class: 'name', text: name }),
         el('span', { class: 'meta', text: semester ? t.n('course', areas.length) : '' }),
-        el('span', { class: 'meta size', text: fmt(semBytes) })
+        el('span', { class: 'meta size', text: areas.some((a) => !a.scanned) ? '…' : fmt(semBytes) })
       )
     );
     if (openSems.has(semester)) details.open = true;
     for (const a of areas) {
       const box = el('input', { type: 'checkbox', 'data-id': a.id, 'aria-label': a.label || name });
-      box.disabled = a.fileCount === 0 && !a.recordings.length;
+      box.disabled = !selectable(a);
       box.addEventListener('change', () => {
         box.checked ? ui.selected.add(a.id) : ui.selected.delete(a.id);
         renderSelectionState();
       });
       const title = el('div', { class: 'title', title: a.label, text: a.label || t('page.personalHeading') });
       const notes = a.errors.map((e) => t.err(e));
-      const info = [a.fileCount ? t.n('file', a.fileCount) : t('step2.noFiles'), a.recordings.length ? t.n('recording', a.recordings.length) : '']
-        .filter(Boolean)
-        .join(' · ');
+      const info = !a.scanned
+        ? t('step2.pending')
+        : [a.fileCount ? t.n('file', a.fileCount) : t('step2.noFiles'), a.recordings.length ? t.n('recording', a.recordings.length) : ''].filter(Boolean).join(' · ');
       details.append(
         el(
           'label',
-          { class: 'course' + (a.fileCount || a.recordings.length ? '' : ' empty') },
+          { class: 'course' + (!a.scanned ? ' pending' : hasContent(a) ? '' : ' empty') },
           box,
           el('div', { class: 'info' }, title, notes.length ? el('span', { class: 'warn', text: '⚠ ' + notes.join(' · ') }) : null),
           el('span', { class: 'meta', text: info }),
@@ -352,7 +419,7 @@ function renderRecordingsInfo() {
 }
 
 $('selAll').addEventListener('click', () => {
-  ui.selected = new Set(ui.areas.filter((a) => a.fileCount > 0 || a.recordings.length).map((a) => a.id));
+  ui.selected = new Set(ui.areas.filter(selectable).map((a) => a.id));
   renderSelectionState();
 });
 $('selNone').addEventListener('click', () => {
@@ -400,7 +467,7 @@ $('chooseBtn').addEventListener('click', async () => {
 });
 
 function updateStart() {
-  $('startBtn').disabled = ui.running || !ui.target || !ui.areas.length || (ui.selected.size === 0 && !ui.includeMessages);
+  $('startBtn').disabled = ui.running || ui.scanning || !ui.target || !ui.areas.length || (ui.selected.size === 0 && !ui.includeMessages);
 }
 
 async function startBackup() {
@@ -567,15 +634,8 @@ $('checkUpdatesBtn').addEventListener('click', () => studip.checkUpdates());
     const st = s.value;
     ui.lang = st.lang || 'de';
     ui.t = KH_I18N.create(ui.lang);
-    if (st.host) {
-      const known = [...$('hostSelect').options].some((o) => o.value === st.host);
-      if (known) $('hostSelect').value = st.host;
-      else {
-        $('hostSelect').value = 'custom';
-        $('customHost').value = st.host;
-        $('customHostField').hidden = false;
-      }
-    }
+    fillHostSelect();
+    if (st.host) selectHost(st.host);
     if (st.filter && Array.isArray(st.filter.categories)) {
       ui.filter.categories = new Set(st.filter.categories.filter((c) => CATEGORIES.includes(c)));
       ui.filter.maxBytes = st.filter.maxBytes || 0;

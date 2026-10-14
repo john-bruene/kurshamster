@@ -26,6 +26,9 @@
     'step1.failed': 'Anmeldung fehlgeschlagen: {error}',
     'step1.ok': 'Angemeldet als {name} ({host}).',
     'step1.expired': 'Deine Stud.IP-Sitzung ist abgelaufen. Bitte melde dich erneut an.',
+    'step1.unreachable': 'Stud.IP unter {host} ist nicht erreichbar. Stimmt die Adresse, und bist du online?',
+    'step1.noApi': 'Diese Stud.IP-Installation bietet keine Schnittstelle (JSON:API) an – vermutlich ist sie älter als Version 4.5 oder die Schnittstelle ist abgeschaltet.',
+    'step1.choose': 'Hochschule wählen …',
     'login.windowTitle': 'Bei Stud.IP anmelden',
     'login.aborted': 'Die Anmeldung wurde abgebrochen.',
 
@@ -47,6 +50,7 @@
     'step2.withRecordings': '{selection} · {recordings} ({size})',
     'step2.selectSemester': '{name} auswählen',
     'step2.personal': 'Persönlich',
+    'step2.pending': 'wird eingelesen …',
 
     'opt.title': 'Was soll gesichert werden?',
     'opt.messages': 'Stud.IP-Nachrichten (Posteingang und Postausgang)',
@@ -209,6 +213,9 @@
     'step1.failed': 'Sign-in failed: {error}',
     'step1.ok': 'Signed in as {name} ({host}).',
     'step1.expired': 'Your Stud.IP session has expired. Please sign in again.',
+    'step1.unreachable': 'Stud.IP at {host} cannot be reached. Is the address correct and are you online?',
+    'step1.noApi': 'This Stud.IP installation does not offer the JSON:API – it is probably older than version 4.5, or the API is switched off.',
+    'step1.choose': 'Choose university …',
     'login.windowTitle': 'Sign in to Stud.IP',
     'login.aborted': 'Sign-in was cancelled.',
 
@@ -229,6 +236,7 @@
     'step2.withRecordings': '{selection} · {recordings} ({size})',
     'step2.selectSemester': 'Select {name}',
     'step2.personal': 'Personal',
+    'step2.pending': 'loading …',
 
     'opt.title': 'What should be saved?',
     'opt.messages': 'Stud.IP messages (inbox and sent)',

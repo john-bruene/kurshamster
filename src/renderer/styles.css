@@ -187,3 +187,5 @@ label.inline select { width: auto; padding: 5px 8px; }
 .update-actions { display: flex; gap: 8px; align-items: center; }
 button.small { padding: 5px 12px; font-size: 13px; }
 .small-link { font-size: 12px; padding: 0; }
+
+.course.pending .meta { font-style: italic; }

@@ -27,4 +27,5 @@ contextBridge.exposeInMainWorld('studip', {
   updateAction: call('update-action'),
   onProgress: listen('progress'),
   onUpdate: listen('update'),
+  onScanUpdate: listen('scan-update'),
 });

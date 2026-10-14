@@ -1,7 +1,7 @@
 {
   "name": "kurshamster",
   "productName": "KursHamster",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Hamstert alle deine Daten aus Stud.IP: Kursdateien und Nachrichten, gesichert auf dem eigenen Rechner.",
   "homepage": "https://github.com/john-bruene/kurshamster",
   "repository": {
@@ -21,7 +21,8 @@
     "test:e2e": "electron test/e2e.js",
     "dist": "electron-builder --publish never",
     "dist:mac": "electron-builder --mac --publish never",
-    "dist:win": "electron-builder --win --publish never"
+    "dist:win": "electron-builder --win --publish never",
+    "readme:map": "node tools/readme-map.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"

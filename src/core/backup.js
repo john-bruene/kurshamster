@@ -127,6 +127,26 @@ const MESSAGE_PAGES = i18n.languages.map((l) => {
   return [t('dir.messages'), t('file.messagesPage')];
 });
 
+/** Kompakte Beschreibung eines Bereichs für die Oberfläche (inkl. Daten für die Live-Filter). */
+function summarizeArea(a) {
+  return {
+    id: a.id,
+    kind: a.kind,
+    label: a.label,
+    title: a.title,
+    number: a.number,
+    semester: a.semester,
+    scanned: a.scanned !== false,
+    fileCount: a.files.length,
+    bytes: a.bytes || 0,
+    errors: a.errors,
+    files: a.files.map((f) => [f.size, f.cat]),
+    recordings: (a.recordings || [])
+      .filter((r) => r.allowed)
+      .map((r) => [r.variants.reduce((s, v) => s + (v.high.size || 0), 0), r.variants.reduce((s, v) => s + (v.low.size || 0), 0)]),
+  };
+}
+
 // ------------------------------------------------------------------ Backup
 
 class Backup extends EventEmitter {
@@ -278,24 +298,98 @@ class Backup extends EventEmitter {
     }
   }
 
-  /** Liest alle Kurse, Dateien und Aufzeichnungen ein, ohne etwas herunterzuladen. */
-  async scan(uid) {
+  /**
+   * Schneller Weg: alle Ordner und alle Dateien eines Bereichs mit je einer (seitenweisen) Anfrage.
+   * Ordner ohne Leserecht werden vermerkt. Fällt auf das ordnerweise Einlesen zurück, wenn die
+   * Stud.IP-Version die Sammelroute nicht kennt.
+   */
+  async scanAreaFast(foldersUrl, refsUrl, entry) {
+    let folders;
+    try {
+      ({ data: folders } = await this.client.getAll(foldersUrl));
+    } catch (e) {
+      if (passthrough(e)) throw e;
+      entry.errors.push(e.status === 403 ? { key: 'err.areaForbidden' } : { key: 'err.areaUnreadable', vars: { error: e.message } });
+      return;
+    }
+    const byId = new Map(folders.map((f) => [f.id, f]));
+    const paths = new Map();
+    const pathOf = (id, depth = 0) => {
+      if (!byId.has(id) || depth > 50) return [];
+      if (paths.has(id)) return paths.get(id);
+      const f = byId.get(id);
+      const a = f.attributes || {};
+      const parent = relId(f, 'parent');
+      const isRoot = a['folder-type'] === 'RootFolder' || !parent || !byId.has(parent);
+      const p = isRoot ? [] : [...pathOf(parent, depth + 1), clean(a.name || 'Ordner')];
+      paths.set(id, p);
+      return p;
+    };
+    for (const f of folders) {
+      if (f.attributes && f.attributes['is-readable'] === false) {
+        entry.errors.push({ key: 'err.folderForbidden', vars: { folder: pathOf(f.id).join('/') } });
+      }
+    }
+    let refs;
+    try {
+      ({ data: refs } = await this.client.getAll(refsUrl));
+    } catch (e) {
+      if (passthrough(e)) throw e;
+      if (e.status === 404) {
+        entry.errors = entry.errors.filter((x) => x.key !== 'err.folderForbidden');
+        return this.scanArea(foldersUrl, entry); // ältere Stud.IP-Version
+      }
+      entry.errors.push({ key: 'err.areaUnreadable', vars: { error: e.message } });
+      return;
+    }
+    const used = new Map();
+    for (const ref of refs) {
+      const a = ref.attributes || {};
+      if (a['is-readable'] === false) continue;
+      const parent = relId(ref, 'parent');
+      if (!used.has(parent)) used.set(parent, new Set());
+      const seen = used.get(parent);
+      let name = cleanFilename(a.name || ref.id);
+      if (seen.has(name.toLowerCase())) {
+        const dot = name.lastIndexOf('.');
+        name = dot > 0 ? `${name.slice(0, dot)} (${ref.id.slice(0, 6)})${name.slice(dot)}` : `${name} (${ref.id.slice(0, 6)})`;
+      }
+      seen.add(name.toLowerCase());
+      entry.files.push({
+        refId: ref.id,
+        parts: [...pathOf(parent), name],
+        size: typeof a.filesize === 'number' ? a.filesize : a.filesize != null && !isNaN(Number(a.filesize)) ? Number(a.filesize) : null,
+        chdate: a.chdate || null,
+        downloadable: a['is-downloadable'] !== false,
+        description: a.description || '',
+        cat: categoryOf(name),
+      });
+    }
+  }
+
+  /**
+   * Liest alle Kurse, Dateien und Aufzeichnungen ein, ohne etwas herunterzuladen.
+   * Events: 'courses' (Liste sofort nach dem ersten Abruf), 'area' (je fertigem Kurs), 'progress'.
+   */
+  async scan(uid, { concurrency = 4 } = {}) {
     this.client.resetCancel();
     this.progress({ phase: 'scan', done: 0, total: 0 }, true);
     const courses = await this.listCourses(uid);
+    const areas = courses.map((c) => ({ ...c, kind: 'course', files: [], errors: [], recordings: [], scanned: false }));
+    areas.push({ id: '__personal', title: '', label: '', number: '', semester: '', kind: 'personal', files: [], errors: [], recordings: [], scanned: false });
+    this.emit('courses', areas.map(summarizeArea));
+
     let ocAvailable = false;
     try {
       ocAvailable = await this.opencast.detect();
     } catch (e) {
       if (passthrough(e)) throw e;
     }
-    const areas = courses.map((c) => ({ ...c, kind: 'course', files: [], errors: [], recordings: [] }));
-    areas.push({ id: '__personal', title: '', label: '', number: '', semester: '', kind: 'personal', files: [], errors: [], recordings: [] });
-    for (let i = 0; i < areas.length; i++) {
-      const a = areas[i];
-      this.progress({ phase: 'scan', done: i, total: areas.length, label: a.label });
+
+    let done = 0;
+    const scanOne = async (a) => {
       if (a.kind === 'course') {
-        await this.scanArea(`courses/${a.id}/folders`, a);
+        await this.scanAreaFast(`courses/${a.id}/folders`, `courses/${a.id}/file-refs`, a);
         if (ocAvailable) {
           try {
             a.recordings = await this.opencast.listCourse(a.id);
@@ -304,10 +398,25 @@ class Backup extends EventEmitter {
           }
         }
       } else {
-        await this.scanArea(`users/${uid}/folders`, a);
+        await this.scanAreaFast(`users/${uid}/folders`, `users/${uid}/file-refs`, a);
       }
       a.bytes = a.files.reduce((s, f) => s + (f.size || 0), 0);
-    }
+      a.scanned = true;
+      done++;
+      this.emit('area', summarizeArea(a));
+      this.progress({ phase: 'scan', done, total: areas.length, label: a.label });
+    };
+
+    // mehrere Kurse gleichzeitig, aber in Maßen, um den Server zu schonen
+    let next = 0;
+    const worker = async () => {
+      while (next < areas.length) {
+        const a = areas[next++];
+        await scanOne(a);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, areas.length)) }, worker));
+
     this.progress({ phase: 'scan', done: areas.length, total: areas.length }, true);
     return {
       uid,
@@ -693,4 +802,4 @@ class Backup extends EventEmitter {
   }
 }
 
-module.exports = { Backup, clean, cleanFilename, htmlToText, semesterKey };
+module.exports = { Backup, summarizeArea, clean, cleanFilename, htmlToText, semesterKey };

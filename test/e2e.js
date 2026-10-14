@@ -40,8 +40,12 @@ const server = http.createServer((req, res) => {
     return res.end('<html><body>Start</body></html>');
   }
   const r = respond(data, u, { loggedIn });
-  res.writeHead(r.status, r.headers);
-  res.end(r.body);
+  // etwas Verzögerung beim Einlesen, damit der Live-Überblick sichtbar wird
+  const delay = /\/file-refs$/.test(u.pathname) ? 700 : 0;
+  setTimeout(() => {
+    res.writeHead(r.status, r.headers);
+    res.end(r.body);
+  }, delay);
 });
 
 // ------------------------------------------------------------ Test
@@ -82,8 +86,13 @@ app.whenReady().then(async () => {
     await waitFor(() => js(`!document.getElementById('loginOk').hidden`), 20000, 'Login');
     console.log('Login:', await js(`document.getElementById('loginOk').textContent`));
 
-    await js(`document.getElementById('scanBtn').click(), true`);
-    await waitFor(() => js(`!document.getElementById('selection').hidden`), 20000, 'Einlesen');
+    // Nach dem Login wird automatisch eingelesen – der Überblick erscheint sofort
+    await waitFor(() => js(`!document.getElementById('selection').hidden`), 20000, 'Überblick');
+    console.log('Überblick:', await js(`[...document.querySelectorAll('.course .meta:not(.size)')].map(e => e.textContent).join(' | ')`));
+    await js(`document.getElementById('expandAll').click(), true`);
+    await shot('ueberblick.png');
+    await js(`document.getElementById('expandAll').click(), true`);
+    await waitFor(() => js(`!document.getElementById('selection').hidden && !document.getElementById('scanBtn').disabled`), 20000, 'Einlesen');
     console.log('Auswahl:', await js(`document.getElementById('selSummary').textContent`));
 
     // Filter: Videos abwählen, Aufzeichnungen einschalten

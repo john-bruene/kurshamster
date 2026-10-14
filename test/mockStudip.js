@@ -4,8 +4,8 @@
  * Die Antworten entsprechen in Aufbau und Feldnamen dem echten Stud.IP 6.2 der Uni Göttingen.
  */
 
-const folder = (id, name, parent, type) => ({ id, type: 'folders', attributes: { name, 'folder-type': type }, relationships: { parent: { data: parent ? { id: parent } : null } } });
-const file = (id, name, size) => ({ id, type: 'file-refs', attributes: { name, filesize: size, chdate: '2021-05-03T10:00:00+02:00' } });
+const folder = (id, name, parent, type, readable = true) => ({ id, type: 'folders', attributes: { name, 'folder-type': type, 'is-readable': readable }, relationships: { parent: { data: parent ? { id: parent } : null } } });
+const file = (id, name, size, parent) => ({ id, type: 'file-refs', attributes: { name, filesize: size, chdate: '2021-05-03T10:00:00+02:00', 'is-readable': true, 'is-downloadable': true }, relationships: { parent: { data: { id: parent, type: 'folders' } } } });
 const course = (id, title, number, sem, extra = {}) => ({
   id,
   type: 'courses',
@@ -43,7 +43,7 @@ function video(token, title, { publication = true, created = '2021-04-20 10:00:0
 }
 
 function createData() {
-  return {
+  const data = {
     lists: {
       'users/u1/courses': [
         course('c1', 'Statistik I', '4711    ', 's1', {
@@ -53,17 +53,19 @@ function createData() {
         course('c2', 'Ökonometrie', '0815', 's2', { description: '<p>Kurs mit <strong>HTML</strong>-Beschreibung<script>alert(1)</script></p><img src=x onerror=alert(1)>' }),
         course('c3', 'Gesperrt', '', 's2'),
       ],
-      'courses/c1/folders': [folder('r1', '', null, 'RootFolder'), folder('a', 'Folien/Teil 1', 'r1')],
-      'courses/c2/folders': [folder('r2', '', null, 'RootFolder')],
+      // wie das echte Stud.IP: flache Liste aller Ordner (auch verschachtelte) …
+      'courses/c1/folders': [folder('r1', 'Statistik I', null, 'RootFolder'), folder('a', 'Folien/Teil 1', 'r1'), folder('b', 'Alt', 'a')],
+      'courses/c2/folders': [folder('r2', 'Ökonometrie', null, 'RootFolder'), folder('h', 'Abgaben', 'r2', 'PermissionEnabledFolder', false)],
+      // … und alle lesbaren Dateien des Kurses mit ihrem Ordner
+      'courses/c1/file-refs': [file('f1', 'syllabus.pdf', 5, 'r1'), file('fv', 'intro.mp4', 9, 'r1'), file('f2', 'x.pdf', 3, 'a'), file('f3abcdef', 'x.pdf', 4, 'a')],
+      'courses/c2/file-refs': [file('f4', 'daten.csv', 4, 'r2')],
+      // ordnerweise Routen (Rückfallweg für ältere Stud.IP-Versionen)
       'folders/r1/folders': [folder('a', 'Folien/Teil 1', 'r1')],
       'folders/a/folders': [folder('b', 'Alt', 'a')],
       'folders/b/folders': [],
       'folders/r2/folders': [],
-      'folders/r1/file-refs': [file('f1', 'syllabus.pdf', 5), file('fv', 'intro.mp4', 9)],
-      'folders/a/file-refs': [file('f2', 'x.pdf', 3), file('f3abcdef', 'x.pdf', 4)],
-      'folders/b/file-refs': [],
-      'folders/r2/file-refs': [file('f4', 'daten.csv', 4)],
       'users/u1/folders': [],
+      'users/u1/file-refs': [],
       'users/u1/inbox': [
         { id: 'm1abcdef', type: 'messages', attributes: { subject: 'Hallo', message: '<p>Text&amp;mehr</p>', mkdate: '2020-01-02T03:04:05+01:00' }, relationships: { sender: { data: { id: 'u2' } } } },
       ],
@@ -108,6 +110,14 @@ function createData() {
       },
     },
   };
+  for (const route of ['courses/c1/file-refs', 'courses/c2/file-refs']) {
+    for (const ref of data.lists[route]) {
+      const key = `folders/${ref.relationships.parent.data.id}/file-refs`;
+      (data.lists[key] = data.lists[key] || []).push(ref);
+    }
+  }
+  data.lists['folders/b/file-refs'] = [];
+  return data;
 }
 
 /** Antwort-Funktion für einen Pfad wie /jsonapi.php/v1/… oder /plugins.php/… */

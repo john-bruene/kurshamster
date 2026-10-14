@@ -83,7 +83,30 @@ test('Einlesen: Ordnerbaum, Paging, doppelte Namen, gesperrte Kurse, Aufzeichnun
 
   const c3 = plan.areas.find((a) => a.id === 'c3');
   assert.deepStrictEqual(c3.errors, [{ key: 'err.areaForbidden' }]);
+  const c2 = plan.areas.find((a) => a.id === 'c2');
+  assert.deepStrictEqual(c2.errors, [{ key: 'err.folderForbidden', vars: { folder: 'Abgaben' } }]);
   assert.ok(!plan.areas.some((a) => a.id === '__personal'), 'leere "Meine Dateien" werden ausgeblendet');
+});
+
+test('Schnelles Einlesen: Sammelrouten, Live-Ereignisse und Rückfallweg', async () => {
+  const { data, fetchFn, backup } = await setup();
+  const seen = { courses: null, areas: [] };
+  backup.on('courses', (list) => (seen.courses = list));
+  backup.on('area', (a) => seen.areas.push(a));
+  await backup.scan('u1', { concurrency: 3 });
+  // Überblick kommt sofort, bevor ein Kurs eingelesen ist
+  assert.deepStrictEqual(seen.courses.map((a) => [a.id, a.scanned]), [['c1', false], ['c3', false], ['c2', false], ['__personal', false]]);
+  assert.strictEqual(seen.areas.length, 4);
+  assert.ok(seen.areas.every((a) => a.scanned));
+  assert.deepStrictEqual(seen.areas.find((a) => a.id === 'c1').files.length, 4);
+  // keine Anfragen pro Ordner
+  assert.ok(!fetchFn.calls.some((c) => /\/folders\/\w+\/(folders|file-refs)/.test(c)), fetchFn.calls.join('\n'));
+
+  // Ältere Stud.IP-Version ohne Sammelroute: ordnerweise wie bisher
+  delete data.lists['courses/c1/file-refs'];
+  const plan = await backup.scan('u1');
+  const c1 = plan.areas.find((a) => a.id === 'c1');
+  assert.deepStrictEqual(c1.files.map((f) => f.parts.join('/')).sort(), ['Folien_Teil 1/x (f3abcd).pdf', 'Folien_Teil 1/x.pdf', 'intro.mp4', 'syllabus.pdf'].sort());
 });
 
 test('Sichern mit Filter, Aufzeichnungen, Kursseiten, Übersicht und Fortsetzen', async () => {

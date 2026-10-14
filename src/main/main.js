@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, session, powerSaveBlocker } 
 const path = require('node:path');
 const fs = require('node:fs');
 const { StudipClient, SessionExpired, Cancelled, normalizeHost } = require('../core/client');
-const { Backup } = require('../core/backup');
+const { Backup, summarizeArea } = require('../core/backup');
 const { Updater } = require('./updater');
 const i18n = require('../shared/i18n');
 const pkg = require('../../package.json');
@@ -209,6 +209,20 @@ handle('login', async (host) => {
   saveSettings({ host });
   state.client = new StudipClient(host, studipFetch);
   state.plan = null;
+  // Gibt es dort ein Stud.IP mit JSON:API?
+  let check;
+  try {
+    check = await ses().fetch(`${host}/jsonapi.php/v1/users/me`, { headers: { Accept: 'application/vnd.api+json' }, signal: AbortSignal.timeout(20000) });
+  } catch {
+    const err = new Error(tr()('step1.unreachable', { host }));
+    err.code = 'unreachable';
+    throw err;
+  }
+  if (check.status === 404) {
+    const err = new Error(tr()('step1.noApi'));
+    err.code = 'noapi';
+    throw err;
+  }
   let me = await probeLogin(state.client);
   if (!me) me = await openLoginWindow(host);
   state.me = me;
@@ -226,29 +240,10 @@ handle('scan', async () => {
   if (!state.client || !state.me) throw new SessionExpired();
   const backup = new Backup(state.client);
   backup.on('progress', (p) => send('progress', p));
+  backup.on('courses', (areas) => send('scan-update', { type: 'courses', areas }));
+  backup.on('area', (area) => send('scan-update', { type: 'area', area }));
   state.plan = await backup.scan(state.me.id);
-  return {
-    opencast: state.plan.opencast,
-    areas: state.plan.areas.map((a) => ({
-      id: a.id,
-      kind: a.kind,
-      label: a.label,
-      title: a.title,
-      number: a.number,
-      semester: a.semester,
-      fileCount: a.files.length,
-      bytes: a.bytes,
-      errors: a.errors,
-      // kompakt für die Live-Berechnung der Filter: [Größe, Kategorie]
-      files: a.files.map((f) => [f.size, f.cat]),
-      recordings: (a.recordings || [])
-        .filter((r) => r.allowed)
-        .map((r) => [
-          r.variants.reduce((s, v) => s + (v.high.size || 0), 0),
-          r.variants.reduce((s, v) => s + (v.low.size || 0), 0),
-        ]),
-    })),
-  };
+  return { opencast: state.plan.opencast, areas: state.plan.areas.map(summarizeArea) };
 });
 
 handle('start', async ({ areaIds, includeMessages, target, filter, recordings }) => {

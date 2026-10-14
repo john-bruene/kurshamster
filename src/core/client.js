@@ -35,7 +35,7 @@ class StudipClient {
    * @param {string} host  z. B. https://studip.uni-goettingen.de
    * @param {(url: string, init?: object) => Promise<Response>} fetchFn
    */
-  constructor(host, fetchFn, { pause = 300, pageLimit = 100, timeoutMs = 180000, retryDelayMs = 10000 } = {}) {
+  constructor(host, fetchFn, { pause = 150, pageLimit = 100, timeoutMs = 180000, retryDelayMs = 10000 } = {}) {
     this.host = normalizeHost(host);
     this.api = this.host + '/jsonapi.php/v1/';
     this.fetch = fetchFn;

@@ -73,6 +73,8 @@ jobs:
             node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));delete p.build.mac.identity;p.build.mac.hardenedRuntime=true;p.build.mac.notarize=true;fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
           else
             echo "Kein Apple-Zertifikat: nur Ad-hoc-Signatur"
+            # leere Secrets nicht weiterreichen, sonst sucht electron-builder ein Zertifikat
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
             export CSC_IDENTITY_AUTO_DISCOVERY=false
           fi
           npx electron-builder --mac --publish never

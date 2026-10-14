@@ -1,0 +1,59 @@
+name: Build
+
+# Neues Release: Version in package.json erhöhen, dann
+#   git tag v0.2.0 && git push --tags
+# Die Installer erscheinen danach automatisch auf der Release-Seite.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          # latest.yml und .blockmap braucht die automatische Update-Funktion unter Windows
+          path: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest*.yml
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: installers/*
+          body: |
+            **Windows:** `KursHamster-…-Windows-Setup.exe` herunterladen und doppelklicken. Bei „Der Computer wurde durch Windows geschützt“: „Weitere Informationen“ → „Trotzdem ausführen“.
+
+            **Mac:** `KursHamster-…-Mac.dmg` öffnen und die App in *Programme* ziehen. Beim ersten Start: *Systemeinstellungen → Datenschutz & Sicherheit* → „Dennoch öffnen“.

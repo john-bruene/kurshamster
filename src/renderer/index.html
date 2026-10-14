@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KursHamster</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="updateBar" class="update-bar" hidden>
+    <span id="updateText"></span>
+    <span class="update-actions">
+      <button id="updateBtn" class="primary small" hidden></button>
+      <button id="updateClose" class="link" data-i18n="update.later"></button>
+    </span>
+  </div>
+
+  <header class="top">
+    <div class="brand">
+      <img class="mark" src="icon.png" alt="" />
+      <div>
+        <h1>KursHamster</h1>
+        <p class="sub" data-i18n="app.subtitle"></p>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="lang" role="group" aria-label="Sprache / Language">
+        <button class="lang-btn" data-lang="de">DE</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <div id="userChip" class="chip" hidden>
+        <span id="userName"></span>
+        <button id="logoutBtn" class="link" data-i18n="app.logout"></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Schritt 1 -->
+    <section class="card" id="step1">
+      <div class="step-head"><span class="num">1</span><h2 data-i18n="step1.title"></h2></div>
+      <div id="loginForm" class="row wrap">
+        <label class="field grow">
+          <span data-i18n="step1.university"></span>
+          <select id="hostSelect">
+            <option value="https://studip.uni-goettingen.de">Georg-August-Universität Göttingen</option>
+            <option value="custom" data-i18n="step1.other"></option>
+          </select>
+        </label>
+        <label class="field grow" id="customHostField" hidden>
+          <span data-i18n="step1.address"></span>
+          <input id="customHost" type="url" placeholder="https://studip.example-uni.de" spellcheck="false" />
+        </label>
+        <button id="loginBtn" class="primary" data-i18n="step1.button"></button>
+      </div>
+      <p class="hint" id="loginHint" data-i18n="step1.hint"></p>
+      <p class="msg error" id="loginError" hidden></p>
+      <p class="msg ok" id="loginOk" hidden></p>
+    </section>
+
+    <!-- Schritt 2 -->
+    <section class="card disabled" id="step2">
+      <div class="step-head"><span class="num">2</span><h2 data-i18n="step2.title"></h2></div>
+      <div class="row">
+        <button id="scanBtn" class="primary" disabled data-i18n="step2.scan"></button>
+        <div class="scan-status" id="scanStatus"></div>
+      </div>
+      <div id="selection" hidden>
+        <div class="toolbar">
+          <div class="summary" id="selSummary"></div>
+          <div class="toolbar-actions">
+            <button class="link" id="selAll" data-i18n="step2.all"></button>
+            <button class="link" id="selNone" data-i18n="step2.none"></button>
+            <button class="link" id="expandAll" data-i18n="step2.expandAll"></button>
+          </div>
+        </div>
+        <div id="semesterList" class="semesters"></div>
+
+        <h3 class="opt-title" data-i18n="opt.title"></h3>
+        <div class="options">
+          <div class="opt-block">
+            <div class="opt-label" data-i18n="opt.types"></div>
+            <div class="chips" id="typeChips"></div>
+            <label class="inline">
+              <span data-i18n="opt.maxSize"></span>
+              <select id="maxSize">
+                <option value="0" data-i18n="opt.noLimit"></option>
+                <option value="50000000"></option>
+                <option value="100000000"></option>
+                <option value="250000000"></option>
+                <option value="500000000"></option>
+                <option value="1000000000"></option>
+              </select>
+            </label>
+            <div class="filtered-note" id="filteredNote"></div>
+          </div>
+          <div class="opt-block">
+            <label class="check">
+              <input type="checkbox" id="includeMessages" checked />
+              <span data-i18n="opt.messages"></span>
+            </label>
+            <label class="check" id="recordingsRow">
+              <input type="checkbox" id="includeRecordings" />
+              <span data-i18n="opt.recordings"></span>
+            </label>
+            <div class="opt-sub" id="recordingsInfo"></div>
+            <label class="inline opt-sub" id="qualityRow" hidden>
+              <span data-i18n="opt.quality"></span>
+              <select id="quality">
+                <option value="high" data-i18n="opt.qualityHigh"></option>
+                <option value="low" data-i18n="opt.qualityLow"></option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+      <p class="msg error" id="scanError" hidden></p>
+    </section>
+
+    <!-- Schritt 3 -->
+    <section class="card disabled" id="step3">
+      <div class="step-head"><span class="num">3</span><h2 data-i18n="step3.title"></h2></div>
+      <div class="row wrap">
+        <div class="field grow">
+          <span data-i18n="step3.location"></span>
+          <div class="path" id="targetPath"></div>
+        </div>
+        <button id="chooseBtn" class="secondary" disabled data-i18n="step3.change"></button>
+      </div>
+      <div class="row">
+        <button id="startBtn" class="primary big" disabled data-i18n="step3.start"></button>
+        <button id="cancelBtn" class="secondary" hidden data-i18n="step3.cancel"></button>
+      </div>
+      <div id="progressBox" hidden>
+        <div class="bar"><div class="fill" id="barFill"></div></div>
+        <div class="progress-line">
+          <span id="progressText"></span>
+          <span id="progressPct"></span>
+        </div>
+        <div class="current" id="currentFile"></div>
+      </div>
+      <div id="resultBox" class="result" hidden>
+        <p id="resultText"></p>
+        <div class="row">
+          <button id="overviewBtn" class="primary" data-i18n="step3.openOverview"></button>
+          <button id="openBtn" class="secondary" data-i18n="step3.openFolder"></button>
+          <button id="againBtn" class="link" hidden data-i18n="step3.again"></button>
+        </div>
+        <details id="errorDetails" hidden>
+          <summary id="errorSummary"></summary>
+          <ul id="errorList"></ul>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><span data-i18n="footer.privacy"></span> <span data-i18n="footer.copyright"></span></p>
+    <p data-i18n="footer.unofficial"></p>
+    <p class="version"><span id="version"></span> · <button class="link small-link" id="checkUpdatesBtn" data-i18n="app.checkUpdates"></button> <span id="updateNote"></span></p>
+  </footer>
+
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/filetypes.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
